@@ -1,12 +1,10 @@
 > If you like dotenv, you will probably love [dotenvx](https://github.com/dotenvx/dotenvx) – for encrypting `.env` files. Thank you for using dotenv. 🙏
 
-# dotenv [![NPM version](https://img.shields.io/npm/v/dotenv.svg?style=flat-square)](https://www.npmjs.com/package/dotenv) [![downloads](https://img.shields.io/npm/dw/dotenv)](https://www.npmjs.com/package/dotenv)
+# dotenv [![Maven Central](https://img.shields.io/maven-central/v/io.github.motdotla/dotenv.svg?style=flat-square)](https://central.sonatype.com/artifact/io.github.motdotla/dotenv)
 
 <img src="https://raw.githubusercontent.com/motdotla/dotenv/master/dotenv.svg" alt="dotenv" align="right" width="200" />
 
-Dotenv is a zero-dependency module that loads environment variables from a `.env` file into [`process.env`](https://nodejs.org/docs/latest/api/process.html#process_process_env). Storing configuration in the environment separate from code is based on [The Twelve-Factor App](https://12factor.net/config) methodology.
-
-[Watch the tutorial](https://www.youtube.com/watch?v=YtkZR0NFd1g)
+Dotenv is a zero-dependency library that loads environment variables from a `.env` file into your application's environment. Storing configuration in the environment separate from code is based on [The Twelve-Factor App](https://12factor.net/config) methodology.
 
 &nbsp;
 
@@ -14,8 +12,12 @@ Dotenv is a zero-dependency module that loads environment variables from a `.env
 
 Install it.
 
-```sh
-npm install dotenv --save
+```xml
+<dependency>
+  <groupId>io.github.motdotla</groupId>
+  <artifactId>dotenv</artifactId>
+  <version>17.4.2</version>
+</dependency>
 ```
 
 Create a `.env` file in the root of your project:
@@ -26,72 +28,79 @@ HELLO="Dotenv"
 OPENAI_API_KEY="your-api-key-goes-here"
 ```
 
-As early as possible in your application, import and configure dotenv:
+As early as possible in your application, configure dotenv:
 
-```javascript
-// index.js
-require('dotenv').config()
-// or import 'dotenv/config' // for esm
+```java
+// Main.java
+import io.github.motdotla.dotenv.Dotenv;
 
-console.log(`Hello ${process.env.HELLO}`)
+public class Main {
+  public static void main(String[] args) {
+    Dotenv.config();
+
+    System.out.println("Hello " + Dotenv.processEnv().get("HELLO"));
+  }
+}
 ```
 ```sh
-$ node index.js
+$ java -jar app.jar
 ◇ injected env (2) from .env
 Hello Dotenv
 ```
 
-That's it. `process.env` now has the keys and values you defined in your `.env` file.
+That's it. `Dotenv.processEnv()` now has the keys and values you defined in your `.env` file.
+
+&nbsp;
+
+### A note on `processEnv`
+
+A JVM cannot modify its own environment, so dotenv cannot write into `System.getenv()` the way it wrote into Node's `process.env`. Instead, `Dotenv.processEnv()` is a mutable map seeded from `System.getenv()` at startup, and that is where loaded values land. Read your configuration from it:
+
+```java
+Dotenv.processEnv().get("HELLO");   // from .env, or from the real environment
+System.getenv("HELLO");             // only the real environment — not what .env loaded
+```
+
+Values loaded into it are passed on to child processes started by `dotenv run`, so a command run under the CLI sees them as real environment variables.
 
 &nbsp;
 
 ## Advanced
 
-<details><summary>ES6</summary><br>
+<details><summary>Gradle</summary><br>
 
-Import with [ES6](#how-do-i-use-dotenv-with-import):
-
-```javascript
-import 'dotenv/config'
+```groovy
+implementation 'io.github.motdotla:dotenv:17.4.2'
 ```
 
 `DOTENV_CONFIG_ENCODING`, `DOTENV_CONFIG_PATH`, `DOTENV_CONFIG_QUIET`, `DOTENV_CONFIG_DEBUG`, `DOTENV_CONFIG_OVERRIDE`, `DOTENV_CONFIG_SECURE`, and `DOTENV_CONFIG_FAST` provide defaults for `config()` and `dotenv run`. Options/flags passed directly take precedence.
 
 </details>
-<details><summary>bun</summary><br>
+<details><summary>Loading before application code</summary><br>
 
-```sh
-bun add dotenv
+Touching `Config` loads your `.env` from its static initializer, before anything else in your application runs. It is the counterpart of `import 'dotenv/config'`, and is configured entirely through the `DOTENV_CONFIG_*` environment variables.
+
+```java
+import io.github.motdotla.dotenv.Config;
+
+public class Main {
+  static {
+    Config.load();
+  }
+
+  public static void main(String[] args) {
+    // configuration is already loaded here
+  }
+}
 ```
 
 </details>
-<details><summary>yarn</summary><br>
+<details><summary>Multi-module builds</summary><br>
 
-```sh
-yarn add dotenv
-```
-
-</details>
-<details><summary>pnpm</summary><br>
-
-```sh
-pnpm add dotenv
-```
-
-</details>
-<details><summary>deno</summary><br>
-
-```sh
-deno add dotenv
-```
-
-</details>
-<details><summary>Monorepos</summary><br>
-
-For monorepos with a structure like `apps/backend/app.js`, put it the `.env` file in the root of the folder where your `app.js` process runs.
+For a multi-module build with a structure like `apps/backend`, put the `.env` file in the root of the folder where your process runs.
 
 ```ini
-# app/backend/.env
+# apps/backend/.env
 S3_BUCKET="YOURS3BUCKET"
 SECRET_KEY="YOURSECRETKEYGOESHERE"
 ```
@@ -99,7 +108,7 @@ SECRET_KEY="YOURSECRETKEYGOESHERE"
 </details>
 <details><summary>Multiline Values</summary><br>
 
-If you need multiline variables, for example private keys, those are now supported (`>= v15.0.0`) with line breaks:
+If you need multiline variables, for example private keys, those are supported with line breaks:
 
 ```ini
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
@@ -126,18 +135,19 @@ SECRET_KEY=YOURSECRETKEYGOESHERE # comment
 SECRET_HASH="something-with-a-#-hash"
 ```
 
-Comments begin where a `#` exists, so if your value contains a `#` please wrap it in quotes. This is a breaking change from `>= v15.0.0` and on.
+Comments begin where a `#` exists, so if your value contains a `#` please wrap it in quotes.
 
 </details>
 <details><summary>Parsing</summary><br>
 
-The engine which parses the contents of your file containing environment variables is available to use. It accepts a String or Buffer and will return an Object with the parsed keys and values.
+The engine which parses the contents of your file containing environment variables is available to use. It accepts a `String` or a `byte[]` and returns a `Map` with the parsed keys and values.
 
-```javascript
-const dotenv = require('dotenv')
-const buf = Buffer.from('BASIC=basic')
-const config = dotenv.parse(buf) // will return an object
-console.log(typeof config, config) // object { BASIC : 'basic' }
+```java
+import io.github.motdotla.dotenv.Dotenv;
+import java.util.Map;
+
+Map<String, String> config = Dotenv.parse("BASIC=basic");
+System.out.println(config); // {BASIC=basic}
 ```
 
 </details>
@@ -146,68 +156,74 @@ console.log(typeof config, config) // object { BASIC : 'basic' }
 Use `dotenv run --` to run a command with environment variables from your `.env` file.
 
 ```bash
-$ dotenv run -- node index.js
+$ dotenv run -- java -jar app.jar
 ◇ injected env (2) from .env
 ```
 
 Use `-f` to select one or more `.env` files.
 
 ```bash
-$ dotenv run -f .env.local -f .env -- node index.js
+$ dotenv run -f .env.local -f .env -- java -jar app.jar
 ◇ injected env (2) from .env.local, .env
 ```
 
 Use `--quiet` to suppress the injected env message.
 
 ```bash
-$ dotenv run --quiet -- node index.js
+$ dotenv run --quiet -- java -jar app.jar
 ```
 
 Use `--override` to overwrite existing environment variables, and `--debug` for debug logging.
 
 ```bash
-$ dotenv run --override --debug -- node index.js
+$ dotenv run --override --debug -- java -jar app.jar
 ```
 
-Use `--secure` or `config({ secure: true })` to decrypt via [dotenvx](https://dotenvx.com).
+Use `--secure` or `config(new ConfigOptions().secure(true))` to decrypt via [dotenvx](https://dotenvx.com).
 
 ```bash
-$ npm i @dotenvx/dotenvx
-$ dotenv run --secure -- node index.js
+$ curl -sfS https://dotenvx.sh | sh
+$ dotenv run --secure -- java -jar app.jar
 ```
 
-```js
-require('dotenv').config({ secure: true })
+```java
+Dotenv.config(new ConfigOptions().secure(true));
 ```
 
 Or with an environment variable:
 
 ```bash
-$ DOTENV_CONFIG_SECURE=true dotenv run -- node index.js
-$ DOTENV_CONFIG_SECURE=true node -e "require('dotenv').config()"
+$ DOTENV_CONFIG_SECURE=true dotenv run -- java -jar app.jar
 ```
 
-`dotenv run --secure` resolves local `@dotenvx/dotenvx` then `dotenvx` on your `PATH`. `config({ secure: true })` requires a local `@dotenvx/dotenvx` install.
+Both `dotenv run --secure` and `config(new ConfigOptions().secure(true))` resolve `dotenvx` on your `PATH`.
 
-If your `.env` contains `encrypted:` values and you run without `--secure` / `secure: true`, dotenv warns and leaves them encrypted.
+If your `.env` contains `encrypted:` values and you run without `--secure` / `secure(true)`, dotenv warns and leaves them encrypted.
 
-The same `DOTENV_CONFIG_*` environment variables formerly used by preload still work with the CLI. CLI flags take precedence.
+The `DOTENV_CONFIG_*` environment variables work with the CLI too. CLI flags take precedence.
 
 ```bash
-$ DOTENV_CONFIG_PATH=./.env.local DOTENV_CONFIG_QUIET=true dotenv run -- node index.js
+$ DOTENV_CONFIG_PATH=./.env.local DOTENV_CONFIG_QUIET=true dotenv run -- java -jar app.jar
 ```
 
-Use `--fast` (or `config({ fast: true })`) for the faster character-scanner parser (~2x). Default remains the classic regex parser.
+Use `--fast` (or `fast(true)`) for the faster character-scanner parser. Default remains the classic regex parser.
 
 ```bash
-$ dotenv run --fast -- node index.js
+$ dotenv run --fast -- java -jar app.jar
 ```
 
-```js
-require('dotenv').config({ fast: true })
+```java
+Dotenv.config(new ConfigOptions().fast(true));
 ```
 
 Supported: `DOTENV_CONFIG_PATH`, `DOTENV_CONFIG_ENCODING`, `DOTENV_CONFIG_QUIET`, `DOTENV_CONFIG_DEBUG`, `DOTENV_CONFIG_OVERRIDE`, `DOTENV_CONFIG_SECURE`, `DOTENV_CONFIG_FAST`.
+
+The CLI ships as an executable jar. Build it with `mvn package` and put a `dotenv` on your `PATH`:
+
+```bash
+#!/bin/sh
+exec java -jar /path/to/dotenv-17.4.2.jar "$@"
+```
 
 </details>
 <details><summary>Variable Expansion</summary><br>
@@ -221,12 +237,8 @@ Reference and expand variables already on your machine for use in your .env file
 USERNAME="username"
 DATABASE_URL="postgres://${USERNAME}@localhost/my_database"
 ```
-```js
-// index.js
-console.log('DATABASE_URL', process.env.DATABASE_URL)
-```
 ```sh
-$ dotenvx run --debug -- node index.js
+$ dotenvx run --debug -- java -jar app.jar
 ⟐ injected env (2) from .env · dotenvx@1.59.1
 DATABASE_URL postgres://username@localhost/my_database
 ```
@@ -242,12 +254,8 @@ Add the output of a command to one of your variables in your .env file.
 # .env
 DATABASE_URL="postgres://$(whoami)@localhost/my_database"
 ```
-```js
-// index.js
-console.log('DATABASE_URL', process.env.DATABASE_URL)
-```
 ```sh
-$ dotenvx run --debug -- node index.js
+$ dotenvx run --debug -- java -jar app.jar
 ⟐ injected env (1) from .env · dotenvx@1.59.1
 DATABASE_URL postgres://yourusername@localhost/my_database
 ```
@@ -261,9 +269,8 @@ Add encryption to your `.env` files with a single command.
 
 ```
 $ dotenvx set HELLO Production -f .env.production
-$ echo "console.log('Hello ' + process.env.HELLO)" > index.js
 
-$ DOTENV_PRIVATE_KEY_PRODUCTION="<.env.production private key>" dotenvx run -- node index.js
+$ DOTENV_PRIVATE_KEY_PRODUCTION="<.env.production private key>" dotenvx run -- java -jar app.jar
 ⟐ injected env (2) from .env.production · dotenvx@1.59.1
 Hello Production
 ```
@@ -279,11 +286,9 @@ Run any environment locally. Create a `.env.ENVIRONMENT` file and use `-f` to lo
 
 ```bash
 $ echo "HELLO=production" > .env.production
-$ echo "console.log('Hello ' + process.env.HELLO)" > index.js
 
-$ dotenvx run -f=.env.production -- node index.js
+$ dotenvx run -f=.env.production -- java -jar app.jar
 Hello production
-> ^^
 ```
 
 or with multiple .env files
@@ -291,9 +296,8 @@ or with multiple .env files
 ```bash
 $ echo "HELLO=local" > .env.local
 $ echo "HELLO=World" > .env
-$ echo "console.log('Hello ' + process.env.HELLO)" > index.js
 
-$ dotenvx run -f=.env.local -f=.env -- node index.js
+$ dotenvx run -f=.env.local -f=.env -- java -jar app.jar
 Hello local
 ```
 
@@ -330,7 +334,7 @@ $ git commit -m "encrypted .env.production"
 $ git push heroku main
 ```
 
-Dotenvx will decrypt and inject the secrets at runtime using `dotenvx run -- node index.js`.
+Dotenvx will decrypt and inject the secrets at runtime using `dotenvx run -- java -jar app.jar`.
 
 </details>
 <details><summary>Syncing</summary><br>
@@ -340,27 +344,6 @@ Use [dotenvx](https://github.com/dotenvx/dotenvx) to sync your .env files.
 Encrypt them with `dotenvx encrypt -f .env` and safely include them in source control. Your secrets are securely synced with your git.
 
 This still subscribes to the twelve-factor app rules by generating a decryption key separate from code.
-
-</details>
-<details><summary>More Examples</summary><br>
-
-See [examples](https://github.com/dotenv-org/examples) of using dotenv with various frameworks, languages, and configurations.
-
-* [nodejs](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-nodejs)
-* [nodejs (debug on)](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-nodejs-debug)
-* [nodejs (override on)](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-nodejs-override)
-* [nodejs (processEnv override)](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-custom-target)
-* [esm](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-esm)
-* [typescript](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-typescript)
-* [typescript parse](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-typescript-parse)
-* [typescript config](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-typescript-config)
-* [webpack](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-webpack)
-* [webpack (plugin)](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-webpack2)
-* [react](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-react)
-* [react (typescript)](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-react-typescript)
-* [express](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-express)
-* [nestjs](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-nestjs)
-* [fastify](https://github.com/dotenv-org/examples/tree/master/usage/dotenv-fastify)
 
 </details>
 
@@ -391,33 +374,57 @@ We recommend creating one `.env` file per environment. Use `.env` for local/deve
 Additionally, we recommend using [dotenvx](https://github.com/dotenvx/dotenvx) to encrypt and manage these.
 
 </details>
+<details><summary>Why doesn't `System.getenv()` see my values?</summary><br/>
 
-<details><summary>How do I use dotenv with `import`?</summary><br/>
+Because a JVM cannot modify its own environment. `System.getenv()` returns an unmodifiable snapshot of the real process environment, taken at startup.
 
-Import `dotenv/config` before modules that read environment variables.
+Read from `Dotenv.processEnv()` instead — it is seeded from `System.getenv()` and is where dotenv writes:
 
-```javascript
-// index.mjs (ESM)
-import 'dotenv/config'
-import express from 'express'
+```java
+Dotenv.config();
+Dotenv.processEnv().get("HELLO");
 ```
 
-This loads environment variables before the rest of your application modules are initialized. You can also use the CLI to inject them before Node starts:
+If you need the values to be real environment variables — because a library you do not control reads `System.getenv()`, for example — start your process under the CLI, which passes them to the child:
 
 ```bash
-dotenv run -- node index.mjs
+$ dotenv run -- java -jar app.jar
 ```
-</details>
 
+</details>
+<details><summary>How do I load env before other code runs?</summary><br/>
+
+Touch `Config` from a static initializer, before your application's own classes are initialized.
+
+```java
+import io.github.motdotla.dotenv.Config;
+
+public class Main {
+  static {
+    Config.load();
+  }
+
+  public static void main(String[] args) {
+    // ...
+  }
+}
+```
+
+You can also use the CLI to inject them before the JVM starts:
+
+```bash
+dotenv run -- java -jar app.jar
+```
+
+</details>
 <details><summary>Can I customize/write plugins for dotenv?</summary><br/>
 
-Yes! `dotenv.config()` returns an object representing the parsed `.env` file. This gives you everything you need to continue setting values on `process.env`. For example:
+Yes! `Dotenv.config()` returns a result whose `parsed()` map represents the parsed `.env` file. This gives you everything you need to continue setting values yourself. For example:
 
-```js
-const dotenv = require('dotenv')
-const variableExpansion = require('dotenv-expand')
-const myEnv = dotenv.config()
-variableExpansion(myEnv)
+```java
+ConfigResult result = Dotenv.config(new ConfigOptions().processEnv(new LinkedHashMap<>()));
+Map<String, String> expanded = myExpander(result.parsed());
+Dotenv.populate(Dotenv.processEnv(), expanded);
 ```
 
 </details>
@@ -425,23 +432,25 @@ variableExpansion(myEnv)
 
 The parsing engine currently supports the following rules:
 
-- `BASIC=basic` becomes `{BASIC: 'basic'}`
+- `BASIC=basic` becomes `{BASIC=basic}`
 - empty lines are skipped
 - lines beginning with `#` are treated as comments
 - `#` marks the beginning of a comment (unless when the value is wrapped in quotes)
-- empty values become empty strings (`EMPTY=` becomes `{EMPTY: ''}`)
-- inner quotes are maintained (think JSON) (`JSON={"foo": "bar"}` becomes `{JSON:"{\"foo\": \"bar\"}"`)
-- whitespace is removed from both ends of unquoted values (see more on [`trim`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim)) (`FOO=  some value  ` becomes `{FOO: 'some value'}`)
-- single and double quoted values are escaped (`SINGLE_QUOTE='quoted'` becomes `{SINGLE_QUOTE: "quoted"}`)
-- single and double quoted values maintain whitespace from both ends (`FOO="  some value  "` becomes `{FOO: '  some value  '}`)
+- empty values become empty strings (`EMPTY=` becomes `{EMPTY=}`)
+- inner quotes are maintained (think JSON) (`JSON={"foo": "bar"}` becomes `{JSON={"foo": "bar"}}`)
+- whitespace is removed from both ends of unquoted values (`FOO=  some value  ` becomes `{FOO=some value}`)
+- single and double quoted values are escaped (`SINGLE_QUOTE='quoted'` becomes `{SINGLE_QUOTE=quoted}`)
+- single and double quoted values maintain whitespace from both ends (`FOO="  some value  "` becomes `{FOO=  some value  }`)
 - double quoted values expand new lines (`MULTILINE="new\nline"` becomes
 
 ```
-{MULTILINE: 'new
-line'}
+{MULTILINE=new
+line}
 ```
 
 - backticks are supported (`` BACKTICK_KEY=`This has 'single' and "double" quotes inside of it.` ``)
+
+Whitespace follows JavaScript's definition rather than Java's, so a leading UTF-8 BOM is skipped ahead of the first key, as are non-breaking spaces around a value.
 
 </details>
 <details><summary>What about syncing and securing .env files?</summary><br/>
@@ -449,58 +458,24 @@ line'}
 Use [dotenvx](https://github.com/dotenvx/dotenvx) to unlock syncing encrypted .env files over git.
 
 </details>
-<details><summary>How do I specify config options with ES6 import?</summary><br/>
-
-Pass options directly to `config()`.
-
-```javascript
-// index.mjs
-import dotenv from 'dotenv'
-
-dotenv.config({
-  path: '/custom/path/to/.env',
-  debug: true
-})
-
-import express from 'express'
-```
-
-If imported modules read environment variables during initialization, use a tiny wrapper file.
-
-Create `load-env.mjs`:
-
-```javascript
-import dotenv from 'dotenv'
-dotenv.config({ path: '/custom/path/to/.env', debug: true })
-```
-
-Then in your main file:
-
-```javascript
-import './load-env.mjs'
-import express from 'express'
-```
-
-</details>
 <details><summary>What if I accidentally commit my `.env` file to code?</summary><br/>
 
-Remove it, [remove git history](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository) and then install the [git pre-commit hook](https://github.com/dotenvx/dotenvx#pre-commit) to prevent this from ever happening again. 
+Remove it, [remove git history](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository) and then install the [git pre-commit hook](https://github.com/dotenvx/dotenvx#pre-commit) to prevent this from ever happening again.
 
 ```
-npm i -g @dotenvx/dotenvx
+curl -sfS https://dotenvx.sh | sh
 dotenvx precommit --install
 ```
 
 </details>
-
 <details><summary>What happens to environment variables that were already set?</summary><br/>
 
 By default, we will never modify any environment variables that have already been set. In particular, if there is a variable in your `.env` file which collides with one that already exists in your environment, then that variable will be skipped.
 
-If instead, you want to override `process.env` use the `override` option.
+If instead, you want to override them, use the `override` option.
 
-```javascript
-require('dotenv').config({ override: true })
+```java
+Dotenv.config(new ConfigOptions().override(true));
 ```
 
 </details>
@@ -514,69 +489,21 @@ Use the [docker prebuild hook](https://dotenvx.com/docs/features/prebuild?utm_so
 RUN curl -fsS https://dotenvx.sh/ | sh
 ...
 RUN dotenvx prebuild
-CMD ["dotenvx", "run", "--", "node", "index.js"]
+CMD ["dotenvx", "run", "--", "java", "-jar", "app.jar"]
 ```
-
-</details>
-<details><summary>How come my environment variables are not showing up for React?</summary><br/>
-
-Your React code is run in Webpack, where the `fs` module or even the `process` global itself are not accessible out-of-the-box. `process.env` can only be injected through Webpack configuration.
-
-If you are using [`react-scripts`](https://www.npmjs.com/package/react-scripts), which is distributed through [`create-react-app`](https://create-react-app.dev/), it has dotenv built in but with a quirk. Preface your environment variables with `REACT_APP_`. See [this stack overflow](https://stackoverflow.com/questions/42182577/is-it-possible-to-use-dotenv-in-a-react-project) for more details.
-
-If you are using other frameworks (e.g. Next.js, Gatsby...), you need to consult their documentation for how to inject environment variables into the client.
 
 </details>
 <details><summary>Why is the `.env` file not loading my environment variables successfully?</summary><br/>
 
-Most likely your `.env` file is not in the correct place. [See this stack overflow](https://stackoverflow.com/questions/42335016/dotenv-file-is-not-loading-environment-variables).
+Most likely your `.env` file is not in the correct place. dotenv looks for it in the process's working directory, which for a JVM is fixed at start-up and reported by `System.getProperty("user.dir")`.
 
-Turn on debug mode and try again..
+Turn on debug mode and try again.
 
-```js
-require('dotenv').config({ debug: true })
+```java
+Dotenv.config(new ConfigOptions().debug(true));
 ```
 
 You will receive a helpful error outputted to your console.
-
-</details>
-<details><summary>Why am I getting the error `Module not found: Error: Can't resolve 'os|path'`?</summary><br/>
-
-You are using dotenv on the front-end and have not included a polyfill. Webpack < 5 used to include these for you. Do the following:
-
-```bash
-npm install node-polyfill-webpack-plugin
-```
-
-Configure your `webpack.config.js` to something like the following.
-
-```js
-require('dotenv').config()
-
-const path = require('path');
-const webpack = require('webpack')
-
-const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
-
-module.exports = {
-  mode: 'development',
-  entry: './src/index.ts',
-  output: {
-    filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-  },
-  plugins: [
-    new NodePolyfillPlugin(),
-    new webpack.DefinePlugin({
-      'process.env': {
-        HELLO: JSON.stringify(process.env.HELLO)
-      }
-    }),
-  ]
-};
-```
-
-Alternatively, just use [dotenv-webpack](https://github.com/mrsteele/dotenv-webpack) which does this and more behind the scenes for you.
 
 </details>
 
@@ -584,7 +511,7 @@ Alternatively, just use [dotenv-webpack](https://github.com/mrsteele/dotenv-webp
 
 ## Docs
 
-Dotenv exposes four functions:
+Dotenv exposes three functions:
 
 * `config`
 * `parse`
@@ -593,46 +520,45 @@ Dotenv exposes four functions:
 ### Config
 
 `config` will read your `.env` file, parse the contents, assign it to
-[`process.env`](https://nodejs.org/docs/latest/api/process.html#process_process_env),
-and return an Object with a `parsed` key containing the loaded content or an `error` key if it failed.
+`Dotenv.processEnv()`, and return a `ConfigResult` whose `parsed()` holds the
+loaded content, or whose `error()` is set if it failed.
 
-```js
-const result = dotenv.config()
+```java
+ConfigResult result = Dotenv.config();
 
-if (result.error) {
-  throw result.error
+if (result.error() != null) {
+  throw result.error();
 }
 
-console.log(result.parsed)
+System.out.println(result.parsed());
 ```
 
-You can additionally, pass options to `config`.
+You can additionally pass options to `config`.
 
 #### Options
 
 ##### path
 
-Default: `path.resolve(process.cwd(), '.env')`
+Default: the `.env` in the working directory
 
 Specify a custom path if your file containing environment variables is located elsewhere.
 
-```js
-require('dotenv').config({ path: '/custom/path/to/.env' })
-```
-You can also pass a `URL` object:
-
-```js
-const fileUrl = new URL('file:///custom/path/to/.env')
-
-require('dotenv').config({ path: fileUrl })
+```java
+Dotenv.config(new ConfigOptions().path("/custom/path/to/.env"));
 ```
 
-By default, `config` will look for a file called .env in the current working directory.
+You can also pass a `URI`:
 
-Pass in multiple files as an array, and they will be parsed in order and combined with `process.env` (or `option.processEnv`, if set). The first value set for a variable will win, unless the `options.override` flag is set, in which case the last value set will win.  If a value already exists in `process.env` and the `options.override` flag is NOT set, no changes will be made to that value. 
+```java
+Dotenv.config(new ConfigOptions().path(URI.create("file:///custom/path/to/.env")));
+```
 
-```js  
-require('dotenv').config({ path: ['.env.local', '.env'] })
+A leading `~` is expanded to your home directory.
+
+Pass in multiple files as a list, and they will be parsed in order and combined with `Dotenv.processEnv()` (or the `processEnv` option, if set). The first value set for a variable will win, unless the `override` option is set, in which case the last value set will win. If a value already exists and `override` is NOT set, no changes will be made to that value.
+
+```java
+Dotenv.config(new ConfigOptions().path(List.of(".env.local", ".env")));
 ```
 
 ##### quiet
@@ -641,30 +567,20 @@ Default: `false`
 
 Suppress runtime logging message.
 
-```js
-// index.js
-require('dotenv').config({ quiet: false }) // change to true to suppress
-console.log(`Hello ${process.env.HELLO}`)
-```
-
-```ini
-# .env
-HELLO=World
-```
-
-```sh
-$ node index.js
-Hello World
+```java
+Dotenv.config(new ConfigOptions().quiet(true));
 ```
 
 ##### encoding
 
 Default: `utf8`
 
-Specify the encoding of your file containing environment variables.
+Specify the encoding of your file containing environment variables. Accepts the
+same names Node accepted: `utf8`, `utf16le`/`ucs2`, `latin1`/`binary`, `ascii`,
+`base64`, `base64url` and `hex`.
 
-```js
-require('dotenv').config({ encoding: 'latin1' })
+```java
+Dotenv.config(new ConfigOptions().encoding("latin1"));
 ```
 
 ##### debug
@@ -673,113 +589,107 @@ Default: `false`
 
 Turn on logging to help debug why certain keys or values are not being set as you expect.
 
-```js
-require('dotenv').config({ debug: process.env.DEBUG })
+```java
+Dotenv.config(new ConfigOptions().debug(true));
 ```
 
 ##### override
 
 Default: `false`
 
-Override any environment variables that have already been set on your machine with values from your .env file(s). If multiple files have been provided in `option.path` the override will also be used as each file is combined with the next. Without `override` being set, the first value wins. With `override` set the last value wins. 
+Override any environment variables that have already been set with values from your .env file(s). If multiple files have been provided in `path` the override will also be used as each file is combined with the next. Without `override` being set, the first value wins. With `override` set the last value wins.
 
-```js
-require('dotenv').config({ override: true })
+```java
+Dotenv.config(new ConfigOptions().override(true));
 ```
 
 ##### secure
 
 Default: `false`
 
-Decrypt via [dotenvx](https://dotenvx.com). Requires a local `@dotenvx/dotenvx` install.
+Decrypt via [dotenvx](https://dotenvx.com). Requires the `dotenvx` CLI on your `PATH`.
 
-```js
-require('dotenv').config({ secure: true })
+```java
+Dotenv.config(new ConfigOptions().secure(true));
 ```
 
 ##### fast
 
 Default: `false`
 
-Use the faster character-scanner parser (~2x). Default remains the classic regex parser.
+Use the faster character-scanner parser. Default remains the classic regex parser.
 
-```js
-require('dotenv').config({ fast: true })
+```java
+Dotenv.config(new ConfigOptions().fast(true));
 ```
 
 ##### processEnv
 
-Default: `process.env`
+Default: `Dotenv.processEnv()`
 
-Specify an object to write your environment variables to. Defaults to `process.env` environment variables.
+Specify a map to write your environment variables to.
 
-```js
-const myObject = {}
-require('dotenv').config({ processEnv: myObject })
+```java
+Map<String, String> myMap = new LinkedHashMap<>();
+Dotenv.config(new ConfigOptions().processEnv(myMap));
 
-console.log(myObject) // values from .env
-console.log(process.env) // this was not changed or written to
+System.out.println(myMap);              // values from .env
+System.out.println(Dotenv.processEnv()); // this was not changed or written to
 ```
 
 ### Parse
 
 The engine which parses the contents of your file containing environment
-variables is available to use. It accepts a String or Buffer and will return
-an Object with the parsed keys and values.
+variables is available to use. It accepts a `String` or a `byte[]` and returns
+a `Map` with the parsed keys and values.
 
-```js
-const dotenv = require('dotenv')
-const buf = Buffer.from('BASIC=basic')
-const config = dotenv.parse(buf) // will return an object
-console.log(typeof config, config) // object { BASIC : 'basic' }
+```java
+Map<String, String> config = Dotenv.parse("BASIC=basic".getBytes(StandardCharsets.UTF_8));
+System.out.println(config); // {BASIC=basic}
 ```
 
 #### Options
 
-##### debug
+##### fast
 
 Default: `false`
 
-Turn on logging to help debug why certain keys or values are not being set as you expect.
+Use the faster character-scanner parser.
 
-```js
-const dotenv = require('dotenv')
-const buf = Buffer.from('hello world')
-const opt = { debug: true }
-const config = dotenv.parse(buf, opt)
-// expect a debug message because the buffer is not in KEY=VAL form
+```java
+Dotenv.parse(src, new ParseOptions().fast(true));
 ```
 
 ### Populate
 
-The engine which populates the contents of your .env file to `process.env` is available for use. It accepts a target, a source, and options. This is useful for power users who want to supply their own objects.
+The engine which populates the contents of your .env file into a target map is
+available for use. It accepts a target, a source, and options. This is useful
+for power users who want to supply their own maps.
 
 For example, customizing the source:
 
-```js
-const dotenv = require('dotenv')
-const parsed = { HELLO: 'world' }
+```java
+Map<String, String> parsed = Map.of("HELLO", "world");
 
-dotenv.populate(process.env, parsed)
+Dotenv.populate(Dotenv.processEnv(), parsed);
 
-console.log(process.env.HELLO) // world
+System.out.println(Dotenv.processEnv().get("HELLO")); // world
 ```
 
 For example, customizing the source AND target:
 
-```js
-const dotenv = require('dotenv')
-const parsed = { HELLO: 'universe' }
-const target = { HELLO: 'world' } // empty object
+```java
+Map<String, String> parsed = Map.of("HELLO", "universe");
+Map<String, String> target = new LinkedHashMap<>(Map.of("HELLO", "world"));
 
-dotenv.populate(target, parsed, { override: true, debug: true })
+Dotenv.populate(target, parsed, new PopulateOptions().override(true).debug(true));
 
-console.log(target) // { HELLO: 'universe' }
+System.out.println(target); // {HELLO=universe}
 ```
 
 #### options
 
-##### Debug
+##### debug
 
 Default: `false`
 
@@ -796,11 +706,3 @@ Override any environment variables that have already been set.
 ## CHANGELOG
 
 See [CHANGELOG.md](CHANGELOG.md)
-
-&nbsp;
-
-## Who's using dotenv?
-
-[These npm modules depend on it.](https://www.npmjs.com/browse/depended/dotenv)
-
-Projects that expand it often use the [keyword "dotenv" on npm](https://www.npmjs.com/search?q=keywords:dotenv).
